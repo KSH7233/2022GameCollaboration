@@ -5,73 +5,57 @@ using UnityEngine;
 public enum PLAYERSTATE
 {
     WATING,
-    PLAY,
-    GOAL
+    PLAY
 }
 
 public class Player : MonoBehaviour
 {
+    public int playerNumber { get; private set; }
     public int attack { get; private set; }
     public int hp { get; private set; }
-    public bool destination { get; private set; }
     public bool isActivate { get; private set; } = false;
 
-    public Vector3 stanbyPos { get; private set; }
     public bool isMove { get; private set; } = false;
 
     public PLAYERSTATE playerState { get; private set; } = PLAYERSTATE.WATING;
 
-    private int unitNumber;
 
 
-    IEnumerator Move(int count)
+    IEnumerator Move()
     {
         if (isMove) yield break;
 
-        count = Mathf.Clamp(count, 1, 5); //count를 범위1-5 사이로 제한
+        //count = Mathf.Clamp(count, 1, 5); //count를 범위1-5 사이로 제한
         isMove = true;
+        int otherplayeridx = GameManager.instance.OtherPlayerIndex(playerNumber);
 
-        Place standingPlace = GameManager.instance.FindStandingPlace(transform.position);
-        if (standingPlace)
-        {          
-            Vector3 startPos = transform.position;
-            Place targetPlace = standingPlace.PostPlace[0];
+        Vector3 startPos = transform.position;
+        Vector3 targetPos = GameManager.instance.PlayerList[otherplayeridx].transform.position;
+        //Place targetPlace = standingPlace.PostPlace[0];
 
-            for (int i = 0; count > i; i++)
-            {
-                if(standingPlace.PostPlace.Length == 0)
-                {
-                    Debug.Log("Can`t find PostPlace");
-                }
-                else if (i == 0 && standingPlace.PostPlace.Length > 1)//count가 0일 조건, 도착해있는 지점이 코너인지 확인해서 [1]로 넘겨줄것, postplace 크기가 1일경우 0번에만 접근
-                {
-                    Debug.Log("shortcut");
-                    targetPlace = standingPlace.PostPlace[1];
-                }
-                else
-                {
-                    targetPlace = standingPlace.PostPlace[0];                    
-                }                    
-
-                Vector3 targetPos = targetPlace.transform.position;
+        //for (int i = 0; count > i; i++)
+        //{
+        //    Vector3 targetPos = targetPlace.transform.position;
 
 
-                float time = 0;
+        //    float time = 0;
 
-                while (1 > time)
-                {
-                    time += Time.deltaTime * 3.333f; // 나누기 0.3f
+        //    while (1 > time)
+        //    {
+        //        time += Time.deltaTime * 3.333f; // 나누기 0.3f
 
-                    transform.position = Vector3.Lerp(startPos, targetPos, time);
+        //        transform.position = Vector3.Lerp(startPos, targetPos, time);
 
-                    yield return null;
-                }
-                startPos = targetPos;
-                standingPlace = targetPlace;
-            }
-            isMove = false;
-            //GameManager.instance.removeStepsAtList();
-        }
+        //        yield return null;
+        //    }
+        //    startPos = targetPos;
+        //    //standingPlace = targetPlace;
+        //}
+        isMove = false;
+        //GameManager.instance.removeStepsAtList();
+
+        //Place standingPlace = GameManager.instance.FindStandingPlace(transform.position);
+
     }
 
 
@@ -84,47 +68,38 @@ public class Player : MonoBehaviour
                 break;
             case PLAYERSTATE.PLAY:                
 
-                Debug.Log(rand1to5);
+                Debug.Log("move " + this);
 
                 if (!isMove)
                 {
-                    StartCoroutine(Move(rand1to5)); //움직이는 동작중에 접근불가
+                    StartCoroutine(Move()); //움직이는 동작중에 접근불가
                 }
 
-                break;
-            case PLAYERSTATE.GOAL:
-                Debug.Log("fin");
-
-                //if("특정조건만족")
-                //    playerState = PLAYERSTATE.PLAY;
                 break;
         }
     }
 
-    public void ConvertActivate()
+
+
+    public void StartPosSet(int playerIndex)
     {
-        isActivate = !isActivate;
-        gameObject.SetActive(isActivate);
+        transform.position = new Vector3(-10 + (20 * playerIndex), 0, 0);
+        gameObject.SetActive(false);
+        playerNumber = playerIndex;
     }
 
-    public void PositionToEntrance()
+    public void setActivate(bool onoff)
     {
-        transform.position = GameManager.instance.FindPlaceToIndex(29).transform.position;
+        gameObject.SetActive(onoff);
     }
 
-    public void unitNumbering(int playerNum, int unitNum)
-    {
-        unitNumber = unitNum;
 
-        stanbyPos = new Vector3(24 * (-playerNum) + unitNumber * 2, 2, 30);
-        transform.position = stanbyPos;
-    }
 
-    private void OnMouseUpAsButton() //누르는 도중 나가면 클릭안됨
-    {
-        Debug.Log(unitNumber + " is clicked");
-        GameManager.instance.ClickedUnitControl(unitNumber);
-    }
+    //private void OnMouseUpAsButton() //누르는 도중 나가면 클릭안됨
+    //{
+    //    Debug.Log(unitNumber + " is clicked");
+    //    GameManager.instance.ClickedUnitControl(unitNumber);
+    //}
 
     public void ChangeUnitState(PLAYERSTATE state)
     {
@@ -133,20 +108,7 @@ public class Player : MonoBehaviour
 
 
 
-    public void EncountMyUnit()//GameManager에서 확인된 아군유닛의 수 만큼 능력치증가 만 작성
-    {
-        //능력치 추가 HOST, GUEST 따져서
 
-        gameObject.SetActive(false);
-        transform.position = stanbyPos;
-    }
 
-    private void OnTriggerStay(Collider other)
-    {
-        if(other.tag == gameObject.tag)
-        {
-
-        }
-    }
 
 }

@@ -41,4 +41,14 @@ public class Places : MonoBehaviour //나중에 자식 클래스를 가지게 될 원형 클래스
         return Place.Length;
     }
 
+    public void AllPlaceNoticeOff()
+    {
+        for (int i = 0; i < places.Count; i++)
+        {
+            Place[i].NoticeControl(false); //with boxcollider off
+        }
+
+        Debug.Log("all off");
+    }
+
 }
