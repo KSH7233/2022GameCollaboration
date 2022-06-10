@@ -1,11 +1,14 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager instance { get; private set; }
     private int thisTurnPlayer = 0; // 0 번부터 시작
+    public int ThisTurnPlayer { get => thisTurnPlayer; }
     private int maxPlayerNum = 2;
 
     //private int selectedUnitNum = 0; //0 ~ 3
@@ -13,27 +16,40 @@ public class GameManager : MonoBehaviour
     private int turnNum = 0;
     public int TurnNum { get => turnNum; }
 
-    //Dictionary<int, List<Player>> unitList = new Dictionary<int, List<Player>>(); //크게 늘릴이유 없음 list이용, 배열
-    //List<List<Player>> playerUnitList = new List<List<Player>>();
-
-    //List<int> movementList = new List<int>(); //던졌을때 사용할 메소드 추가
-
     [SerializeField] Places placeContainer; //attach
     [SerializeField] Player[] playerPrefabs; //attach
 
-    List<Player> playerList = new List<Player>();
+    List<Player> playerList = new List<Player>(); 
+
     public Player[] PlayerList { get { return playerList.ToArray(); } }
+    [SerializeField] List<SpriteFlip> playerSprite = new List<SpriteFlip>();
 
 
-    private int steps;
+    Place lastClickedPlace;
+    public Place LastClickedPlace { get =>lastClickedPlace; }
 
+    [SerializeField] Text resultText; //attach
+
+    bool isolCheck = false;
+    bool gameCheck = false;
+
+    //경민
+    public GameObject[] Gold_sprites;
+    public GameObject island;
+    public Text Player1_Gold;
+    public Text Player2_Gold;
+
+    public  int stayinisland = 3; //몇턴간 고립되게 할건지
+    public  int leftmovenum = 1; //캐릭터가 고립된 동안, 다른 캐릭터가 움직이는 횟수
+
+    private int GoalGoldNum = 40; //획득해야하는 금 수.
 
     private void Awake()
     {
         if(null == instance)
 {
             instance = this;
-            DontDestroyOnLoad(gameObject);
+            //DontDestroyOnLoad(gameObject);
             return;
         }
         Destroy(gameObject);
@@ -46,6 +62,11 @@ public class GameManager : MonoBehaviour
         playerUnitAdd();
         Place4DirectionCheck(3);
 
+        leftmovenum = stayinisland;
+
+        resultText.gameObject.SetActive(false);
+
+        placeContainer.TileSetting();
         //placeContainer.AllPlaceNoticeOff();
 
     }
@@ -64,12 +85,12 @@ public class GameManager : MonoBehaviour
             player.StartPosSet(i);
 
             playerList.Add(player);
+            //PlayerList[i] = player;
         }       
         
      }
 
-
-    void TurnChange()
+    public void TurnChange()
     {
         thisTurnPlayer++;
 
@@ -97,20 +118,50 @@ public class GameManager : MonoBehaviour
     }
 
    
-    public void UnitStepSelection(Place selectedPlace) 
+    public void UnitStepSelection(Place selectedPlace)  //유닛 위치 바꾸는 메소드, 언제호출되는지???
     {
 
-        Player unit = playerList[thisTurnPlayer];
+        Player unit = PlayerList[thisTurnPlayer];
+        Player nonunit = PlayerList[OtherPlayerIndex(thisTurnPlayer)]; //캐릭터의 방어 모션을 위해
 
-        if (unit.playerState == PLAYERSTATE.WATING)
+        //if (unit.playerState == PLAYERSTATE.WATING)
+        //{
+        //    unit.ChangeUnitState(PLAYERSTATE.PLAY);
+        //    unit.gameObject.SetActive(true);
+        //}
+
+        unit.Movement();
+        unit.getgoldnum += selectedPlace.goldnum;
+        unit.Isattack = true;
+
+        Facing();
+
+        FourDirectionNotice();
+    }
+
+    
+
+    public void FourDirectionNotice()
+    {
+        if(lastClickedPlace.Up != null)
         {
-            unit.ChangeUnitState(PLAYERSTATE.PLAY);
-            unit.gameObject.SetActive(true);
-        }            
-
-        unit.Movement(steps); //unit move  
-
-              
+            lastClickedPlace.Up.VisitedNoticeOff();
+        }
+        
+        if(lastClickedPlace.Down != null)
+        {
+            lastClickedPlace.Down.VisitedNoticeOff();
+        }
+        
+        if(lastClickedPlace.Left != null)
+        {
+            lastClickedPlace.Left.VisitedNoticeOff();
+        }
+        
+        if(lastClickedPlace.Right != null)
+        {
+            lastClickedPlace.Right.VisitedNoticeOff();
+        }
     }
 
     public int OtherPlayerIndex(int thisTurnPlayer)
@@ -120,6 +171,29 @@ public class GameManager : MonoBehaviour
         else
             return 0;
     }
+
+    public void ResetGameEnv() //플레이어 한 명이 무인도에 갇혔을때, 타일을 초기화할 함수
+    {
+        for ( int i =0;i<placeContainer.Place.Length;i++) //타일 초기화
+        {
+            if(placeContainer.FindPlayerPlace(playerList[thisTurnPlayer].transform.position)
+               != placeContainer.Place[i])
+            {
+                placeContainer.Place[i].visited = false;
+                placeContainer.Place[i].ChangeVisitedTileToUnvisitedTile();
+            }            
+            
+            placeContainer.Place[i].NoticeControl(false);
+            
+            FourDirectionNotice(); //4방향켜기
+
+            //placeContainer.Place[i].SetGold();
+        }
+
+        isolCheck = false;
+
+    }
+
 
     public void Place4DirectionCheck(int fieldWidth)
     {
@@ -132,7 +206,7 @@ public class GameManager : MonoBehaviour
         {
             if(i - fieldWidth < 0) //up check
             {
-                tmpUP = null;
+                tmpUP = placeContainer.Place[i]; //self
             }
             else
             {
@@ -141,7 +215,7 @@ public class GameManager : MonoBehaviour
 
             if(i + fieldWidth >= placeContainer.Place.Length) //down check;
             {
-                tmpDown = null;
+                tmpDown = placeContainer.Place[i];
             }
             else
             {
@@ -150,7 +224,7 @@ public class GameManager : MonoBehaviour
 
             if(i % fieldWidth == 0) //left check
             {
-                tmpLeft = null;
+                tmpLeft = placeContainer.Place[i];
             }
             else
             {
@@ -159,7 +233,7 @@ public class GameManager : MonoBehaviour
 
             if((i + 1) % fieldWidth == 0) //right check
             {
-                tmpRight = null;
+                tmpRight = placeContainer.Place[i];
             }
             else
             {
@@ -173,13 +247,147 @@ public class GameManager : MonoBehaviour
         
     }
 
+    public void SetLastClickedPlace(Place place)
+    {
+        lastClickedPlace = place;
+    }
 
-    private void Update() 
-    {  
+    public void AllNoticeOff()
+    {
+        placeContainer.AllPlaceNoticeOff();
+    }
 
+    public bool GameCheck() //목표재화를 다 얻었는지 확인하는 함수
+    {
+        if (PlayerList[thisTurnPlayer].getgoldnum>= GoalGoldNum)
+        {
+            Debug.Log("Goal");
+
+            gameCheck = true;
+
+            return true;
+        }
+
+        return false;
+    }
+
+    
+
+    public bool CheckIsolation()
+    {
+
+        if(lastClickedPlace != null)
+        {
+            if (lastClickedPlace.Up.visited && lastClickedPlace.Down.visited && lastClickedPlace.Left.visited && lastClickedPlace.Right.visited)
+            {
+                //PlayerList[thisTurnPlayer].SetPlayerState(PLAYERSTATE.PLAY2);
+                //PlayerList[OtherPlayerIndex(thisTurnPlayer)].SetPlayerState(PLAYERSTATE.ISOL);
+                Debug.Log("checkIsol true and");
+                return true;
+            }
+
+        }
+
+        Debug.Log("checkIsol false and");
+        return false;
+    }
+
+    public void IsolCheck()
+    {
+        isolCheck = CheckIsolation();
+
+        Debug.Log("Status check?");
+
+        if(playerList[thisTurnPlayer].playerState == PLAYERSTATE.PLAY)
+        {
+            if (!isolCheck)
+            {
+                TurnChange();
+            }
+            else
+            {
+                PlayerList[thisTurnPlayer].SetPlayerState(PLAYERSTATE.PLAY2);
+
+                PlayerList[OtherPlayerIndex(thisTurnPlayer)].SetPlayerState(PLAYERSTATE.ISOL);
+                playerList[OtherPlayerIndex(thisTurnPlayer)].transform.position = island.transform.position;
+
+
+
+            }
+        }
+        else if(playerList[thisTurnPlayer].playerState == PLAYERSTATE.PLAY2)
+        {
+            leftmovenum--;
+            Debug.Log("left move : " + leftmovenum);
+            if(leftmovenum < 0)
+            {
+                playerList[thisTurnPlayer].SetPlayerState(PLAYERSTATE.PLAY);
+                
+                leftmovenum = 1;
+                TurnChange();
+            }
+        }
+
+        
 
 
     }
+
+    public void ResetGold()
+    {
+        for (int i=0;i<placeContainer.Place.Length;i++) 
+        {
+            placeContainer.Place[i].SetGold();
+        }
+    }
+
+    public void Reset() //메인메뉴로 돌아감
+    {
+        //SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        SceneManager.LoadScene("Menu");
+    }
+
+    public void Facing()
+    {
+        if (playerList[0].transform.position.x > playerList[1].transform.position.x)
+        {
+            playerList[0].gameObject.transform.Rotate(new Vector3(0, 0, 0));
+            playerList[1].gameObject.transform.Rotate(new Vector3(0, 180, 0));
+        }
+        else if(playerList[0].transform.position.x == playerList[1].transform.position.x)
+        {
+            playerList[0].gameObject.transform.Rotate(new Vector3(0, 0, 0));
+            playerList[1].gameObject.transform.Rotate(new Vector3(0, 0, 0));
+        }
+        else
+        {
+            playerList[1].gameObject.transform.Rotate(new Vector3(0, 180, 0));
+            playerList[0].gameObject.transform.Rotate(new Vector3(0, 0, 0));
+        }
+
+
+    }
+
+
+    private void Update() 
+    {
+        if (isolCheck)
+        {
+            ResetGameEnv();
+        }
+
+        Player1_Gold.text = PlayerList[0].getgoldnum.ToString() + " / 40";
+        Player2_Gold.text = PlayerList[1].getgoldnum.ToString() + " / 40";
+
+        if (GameCheck()) //gamecheck field
+        {
+            placeContainer.AllPlaceNoticeOff();
+            resultText.text = "Player " + thisTurnPlayer.ToString() + " Win!";
+            resultText.gameObject.SetActive(true);
+            Invoke("Reset", 3.0f);
+        }
+
+    }   
 
 
 }

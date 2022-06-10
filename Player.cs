@@ -5,13 +5,15 @@ using UnityEngine;
 public enum PLAYERSTATE
 {
     WATING,
-    PLAY
+    PLAY,
+    PLAY2, //누군가를 이기면
+    ISOL
 }
 
 public class Player : MonoBehaviour
 {
     public int playerNumber { get; private set; }
-    public int attack { get; private set; }
+    public bool isattack { get; protected set; } = false;
     public int hp { get; private set; }
     public bool isActivate { get; private set; } = false;
 
@@ -19,70 +21,112 @@ public class Player : MonoBehaviour
 
     public PLAYERSTATE playerState { get; private set; } = PLAYERSTATE.WATING;
 
+    Vector3 savedLastPos;
 
+    //경민
+    public bool Isattack = false;
+    public bool Isdeffence = false;
+    public bool Isinisland = false;
 
-    IEnumerator Move()
+    public int getgoldnum = 0;
+
+    private Animator animator;
+   
+
+    void Start()
+    {
+        savedLastPos = transform.position;
+
+        animator = gameObject.GetComponentInChildren<Animator>();
+        
+    }
+
+    IEnumerator Move() //play 상태일 때
     {
         if (isMove) yield break;
 
-        //count = Mathf.Clamp(count, 1, 5); //count를 범위1-5 사이로 제한
         isMove = true;
         int otherplayeridx = GameManager.instance.OtherPlayerIndex(playerNumber);
+        Debug.Log("Move to num : " + otherplayeridx);
 
-        Vector3 startPos = transform.position;
-        Vector3 targetPos = GameManager.instance.PlayerList[otherplayeridx].transform.position;
-        //Place targetPlace = standingPlace.PostPlace[0];
+        Vector3 startPos = savedLastPos;
+        Vector3 middlePos = GameManager.instance.PlayerList[otherplayeridx].transform.position;
+        Vector3 targetPos = GameManager.instance.LastClickedPlace.transform.position; //이거랑 위에거 동일
 
-        //for (int i = 0; count > i; i++)
-        //{
-        //    Vector3 targetPos = targetPlace.transform.position;
+        
 
+        float time = 0;
 
-        //    float time = 0;
+        time = 0;
+        Debug.Log("moving begin");
+        while (1 > time)
+        {
+            
+            time += Time.deltaTime * 4;
 
-        //    while (1 > time)
-        //    {
-        //        time += Time.deltaTime * 3.333f; // 나누기 0.3f
-
-        //        transform.position = Vector3.Lerp(startPos, targetPos, time);
-
-        //        yield return null;
-        //    }
-        //    startPos = targetPos;
-        //    //standingPlace = targetPlace;
-        //}
+            
+            switch(playerState)
+            {
+                case PLAYERSTATE.PLAY:
+                    if (GameManager.instance.PlayerList[otherplayeridx].playerState == PLAYERSTATE.ISOL)
+                    {
+                        //transform.position = Vector3.Lerp(startPos, targetPos, time);
+                        GameManager.instance.PlayerList[otherplayeridx].SetPlayerState(PLAYERSTATE.PLAY);
+                        Debug.Log("isol -> play");
+                    }
+                        transform.position = Vector3.Lerp(startPos, targetPos, time);
+                    break;
+                case PLAYERSTATE.PLAY2:
+                    transform.position = Vector3.Lerp(startPos, targetPos, time);
+                    break;
+            }
+            
+            yield return null;
+        }
+        Debug.Log("moving end");
+        Isattack = true;
         isMove = false;
-        //GameManager.instance.removeStepsAtList();
+        savedLastPos = targetPos;
 
-        //Place standingPlace = GameManager.instance.FindStandingPlace(transform.position);
 
     }
 
 
-    public void Movement(int rand1to5)//이동 코드는 플레이어가 update 호출하는 것이 아님 gm이 update에서 호출해야함
+    public void Movement()//이동 코드는 플레이어가 update 호출하는 것이 아님 gm이 update에서 호출해야함
     {
         switch (playerState) //case를 하나만 놓아도 되는가
         {
             case PLAYERSTATE.WATING:
-                
+                transform.position = GameManager.instance.LastClickedPlace.transform.position;
+                playerState = PLAYERSTATE.PLAY;
+                gameObject.SetActive(true);               
                 break;
-            case PLAYERSTATE.PLAY:                
+
+            case PLAYERSTATE.PLAY:
+            case PLAYERSTATE.PLAY2:
+            
 
                 Debug.Log("move " + this);
 
                 if (!isMove)
                 {
-                    StartCoroutine(Move()); //움직이는 동작중에 접근불가
+                    StartCoroutine(Move()); //움직이는 동작중에 접근불가        
                 }
-
+                break;
+            case PLAYERSTATE.ISOL:
+                transform.position = GameManager.instance.LastClickedPlace.transform.position;
+                Debug.Log("move isol state");
                 break;
         }
+        GameManager.instance.AllNoticeOff();
     }
 
 
 
     public void StartPosSet(int playerIndex)
     {
+        Isdeffence = false;
+        Isattack = false;
         transform.position = new Vector3(-10 + (20 * playerIndex), 0, 0);
         gameObject.SetActive(false);
         playerNumber = playerIndex;
@@ -93,22 +137,10 @@ public class Player : MonoBehaviour
         gameObject.SetActive(onoff);
     }
 
-
-
-    //private void OnMouseUpAsButton() //누르는 도중 나가면 클릭안됨
-    //{
-    //    Debug.Log(unitNumber + " is clicked");
-    //    GameManager.instance.ClickedUnitControl(unitNumber);
-    //}
-
-    public void ChangeUnitState(PLAYERSTATE state)
+    
+    public void SetPlayerState(PLAYERSTATE P)
     {
-        playerState = state;
+        playerState = P;
     }
-
-
-
-
-
 
 }
