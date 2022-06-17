@@ -9,4 +9,9 @@ public class StartButton : MonoBehaviour
     {
         SceneManager.LoadScene("Ingame");
     }
+
+    public void HowToScene()
+    {
+        SceneManager.LoadScene("Howtoplay");
+    }
 }

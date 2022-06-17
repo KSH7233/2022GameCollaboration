@@ -27,6 +27,7 @@ public class Player : MonoBehaviour
     public bool Isattack = false;
     public bool Isdeffence = false;
     public bool Isinisland = false;
+    public bool Isdie = false;
 
     public int getgoldnum = 0;
 
@@ -45,6 +46,7 @@ public class Player : MonoBehaviour
     {
         if (isMove) yield break;
 
+        //Isattack = true;
         isMove = true;
         int otherplayeridx = GameManager.instance.OtherPlayerIndex(playerNumber);
         Debug.Log("Move to num : " + otherplayeridx);
@@ -61,7 +63,8 @@ public class Player : MonoBehaviour
         Debug.Log("moving begin");
         while (1 > time)
         {
-            
+            GameManager.instance.SetIsmove(true);
+
             time += Time.deltaTime * 4;
 
             
@@ -74,17 +77,19 @@ public class Player : MonoBehaviour
                         GameManager.instance.PlayerList[otherplayeridx].SetPlayerState(PLAYERSTATE.PLAY);
                         Debug.Log("isol -> play");
                     }
-                        transform.position = Vector3.Lerp(startPos, targetPos, time);
+
+                    transform.position = Vector3.Lerp(startPos, targetPos, time);
+
                     break;
                 case PLAYERSTATE.PLAY2:
                     transform.position = Vector3.Lerp(startPos, targetPos, time);
                     break;
             }
-            
+
+            GameManager.instance.SetIsmove(false);
             yield return null;
         }
         Debug.Log("moving end");
-        Isattack = true;
         isMove = false;
         savedLastPos = targetPos;
 
@@ -103,15 +108,33 @@ public class Player : MonoBehaviour
                 break;
 
             case PLAYERSTATE.PLAY:
+
+                int otherplayeridx = GameManager.instance.OtherPlayerIndex(playerNumber);
+
+                if (GameManager.instance.PlayerList[otherplayeridx].playerState == PLAYERSTATE.ISOL)
+                {
+                    //StartMoveCoroutine();
+                    Invoke("StartMoveCoroutine", 0.5f);
+                    break;
+                }
+                Isattack = true;
+                GameManager.instance.PlayerList[otherplayeridx].Isdeffence = true;
+
+                Invoke("StartMoveCoroutine", 0.5f);
+
+                break;
             case PLAYERSTATE.PLAY2:
             
-
                 Debug.Log("move " + this);
 
-                if (!isMove)
-                {
-                    StartCoroutine(Move()); //움직이는 동작중에 접근불가        
-                }
+                Invoke("StartMoveCoroutine", 0.5f);
+
+                //if (!isMove)
+                //{
+                //    StartCoroutine(Move()); //움직이는 동작중에 접근불가        
+                //}
+
+                GameManager.instance.HookSound();
                 break;
             case PLAYERSTATE.ISOL:
                 transform.position = GameManager.instance.LastClickedPlace.transform.position;
@@ -119,6 +142,7 @@ public class Player : MonoBehaviour
                 break;
         }
         GameManager.instance.AllNoticeOff();
+
     }
 
 
@@ -143,4 +167,11 @@ public class Player : MonoBehaviour
         playerState = P;
     }
 
+    public void StartMoveCoroutine()
+    {
+        if (!isMove)
+        {
+            StartCoroutine(Move()); //움직이는 동작중에 접근불가        
+        }
+    }
 }

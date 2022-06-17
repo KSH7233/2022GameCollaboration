@@ -9,4 +9,10 @@ public class ExitButton : MonoBehaviour
     {
         Application.Quit();
     }
+
+    public void ToMenu()
+    {
+        SceneManager.LoadScene("Menu");
+
+    }
 }

@@ -19,7 +19,9 @@ public class Place : MonoBehaviour
     private int childNum;
     public int ChildNum { get => childNum; }
 
-    public int goldnum = 0; //경민
+    int goldnum = 0; //경민
+    public int GoldNum { get => goldnum; }
+
     public Material[] mats;
 
     GameObject g; //객체화된 금 오브젝트를 저장하는 변수
@@ -120,10 +122,35 @@ public class Place : MonoBehaviour
         GameManager.instance.IsolCheck();
     }
 
+    public void AIclicked()
+    {
+        GameManager.instance.SetLastClickedPlace(this);
+        Debug.Log("LastClicked : " + GameManager.instance.LastClickedPlace);
+        GameManager.instance.UnitStepSelection(this); //move
+
+        Destroy(g);
+
+        NoticeControl(false);
+
+        gameObject.GetComponent<MeshRenderer>().material = mats[1];
+
+        visited = true;
+
+        GameManager.instance.IsolCheck();
+    }
+
     public void SetGoldZero()
     {
         goldnum = 0;
     }
 
+    private void Update()
+    {
+        if(g != null)
+        {
+            g.transform.Rotate(new Vector3(0, 50 * Time.deltaTime, 0));
+        }
+        
+    }
 
 }

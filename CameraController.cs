@@ -28,9 +28,9 @@ public class CameraController : MonoBehaviour
         {
             thisCamera.fieldOfView = 20.0f;
         }
-        else if (thisCamera.fieldOfView >= 100.0f && scroll > 0) //최대줌아웃
+        else if (thisCamera.fieldOfView >= 60.0f && scroll > 0) //최대줌아웃
         {
-            thisCamera.fieldOfView = 100.0f;
+            thisCamera.fieldOfView = 60.0f;
         }
         else //줌인아웃
         {

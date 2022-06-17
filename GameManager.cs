@@ -17,16 +17,18 @@ public class GameManager : MonoBehaviour
     public int TurnNum { get => turnNum; }
 
     [SerializeField] Places placeContainer; //attach
+    public Places PlaceContainer { get { return placeContainer; } }
+
     [SerializeField] Player[] playerPrefabs; //attach
 
-    List<Player> playerList = new List<Player>(); 
+    List<Player> playerList = new List<Player>();
 
     public Player[] PlayerList { get { return playerList.ToArray(); } }
     [SerializeField] List<SpriteFlip> playerSprite = new List<SpriteFlip>();
 
 
     Place lastClickedPlace;
-    public Place LastClickedPlace { get =>lastClickedPlace; }
+    public Place LastClickedPlace { get => lastClickedPlace; }
 
     [SerializeField] Text resultText; //attach
 
@@ -39,10 +41,16 @@ public class GameManager : MonoBehaviour
     public Text Player1_Gold;
     public Text Player2_Gold;
 
-    public  int stayinisland = 3; //몇턴간 고립되게 할건지
-    public  int leftmovenum = 1; //캐릭터가 고립된 동안, 다른 캐릭터가 움직이는 횟수
+    static int bonusMove = 3;
+    public int leftmovenum; //캐릭터가 고립된 동안, 다른 캐릭터가 움직이는 횟수
 
     private int GoalGoldNum = 40; //획득해야하는 금 수.
+
+    public AudioSource audioSource;
+    public AudioClip hookSound;
+
+    bool ismove = false;
+    public bool Ismove { get => ismove; }
 
     private void Awake()
     {
@@ -60,15 +68,19 @@ public class GameManager : MonoBehaviour
         Debug.Log("Game Start");
 
         playerUnitAdd();
-        Place4DirectionCheck(3);
 
-        leftmovenum = stayinisland;
-
+        audioSource = GetComponent<AudioSource>();
         resultText.gameObject.SetActive(false);
 
         placeContainer.TileSetting();
         //placeContainer.AllPlaceNoticeOff();
+        leftmovenum = bonusMove;
+    }
 
+    public void HookSound()
+    {
+        audioSource.volume = 1.0f;
+        audioSource.Play();
     }
 
     void playerUnitAdd()
@@ -115,6 +127,8 @@ public class GameManager : MonoBehaviour
         Place basePlace = placeContainer.FindPlayerPlace(clickedUnitPos); //Searching place
         Place tmpPlace = basePlace;
 
+        
+
     }
 
    
@@ -122,7 +136,7 @@ public class GameManager : MonoBehaviour
     {
 
         Player unit = PlayerList[thisTurnPlayer];
-        Player nonunit = PlayerList[OtherPlayerIndex(thisTurnPlayer)]; //캐릭터의 방어 모션을 위해
+       // Player nonunit = PlayerList[OtherPlayerIndex(thisTurnPlayer)]; //캐릭터의 방어 모션을 위해
 
         //if (unit.playerState == PLAYERSTATE.WATING)
         //{
@@ -130,13 +144,13 @@ public class GameManager : MonoBehaviour
         //    unit.gameObject.SetActive(true);
         //}
 
+        //nonunit.Isdeffence = true;
         unit.Movement();
-        unit.getgoldnum += selectedPlace.goldnum;
-        unit.Isattack = true;
+        unit.getgoldnum += selectedPlace.GoldNum;
+        selectedPlace.SetGoldZero();
 
         Facing();
-
-        FourDirectionNotice();
+        Invoke("FourDirectionNotice", 0.0f);
     }
 
     
@@ -319,11 +333,12 @@ public class GameManager : MonoBehaviour
         {
             leftmovenum--;
             Debug.Log("left move : " + leftmovenum);
-            if(leftmovenum < 0)
+            if(leftmovenum <= 0)
             {
                 playerList[thisTurnPlayer].SetPlayerState(PLAYERSTATE.PLAY);
                 
-                leftmovenum = 1;
+                leftmovenum = bonusMove;
+                Debug.Log("left move : " + leftmovenum);
                 TurnChange();
             }
         }
@@ -368,9 +383,87 @@ public class GameManager : MonoBehaviour
 
     }
 
+    public void AICheck(Place sidePlace,ref int big, ref Place best)
+    {
+        if (sidePlace.Up.visited && sidePlace.Down.visited && sidePlace.Left.visited && sidePlace.Right.visited)
+        {
+            big = 10;
+            best = sidePlace;
+            return;
+        }
+
+        if (big < sidePlace.GoldNum)
+        {
+            big = sidePlace.GoldNum;
+            best = sidePlace;            
+        }
+    }
+
+    public void AImove() //clicked unit control
+    {
+        if(thisTurnPlayer == 1)
+        {
+            Place best = lastClickedPlace;
+
+            int big = 0;
+
+            if (!lastClickedPlace.Up.visited)
+            {
+                AICheck(lastClickedPlace.Up, ref big, ref best);
+            }
+            if(!lastClickedPlace.Down.visited)
+            {
+                AICheck(lastClickedPlace.Down, ref big, ref best);
+            }
+            if(!lastClickedPlace.Left.visited)
+            {
+                AICheck(lastClickedPlace.Left, ref big, ref best);
+            }
+            if(!lastClickedPlace.Right.visited)
+            {
+                AICheck(lastClickedPlace.Right, ref big, ref best);
+            }
+
+            if(best == lastClickedPlace)
+            {
+                if (!lastClickedPlace.Up.visited)
+                {
+                    best = lastClickedPlace.Up;
+                }
+                if (!lastClickedPlace.Down.visited)
+                {
+                    best = lastClickedPlace.Down;
+                }
+                if (!lastClickedPlace.Left.visited)
+                {
+                    best = lastClickedPlace.Left;
+                }
+                if (!lastClickedPlace.Right.visited)
+                {
+                    best = lastClickedPlace.Right;
+                }
+            }
+
+            best.AIclicked();
+        }
+    }
+
+    public void SetIsmove(bool check)
+    {
+        ismove = check;
+
+        //Debug.Log("Movi is " + check);
+    }
+
 
     private void Update() 
     {
+        if(thisTurnPlayer == 1 && !ismove)
+        {
+            Invoke("AImove", 1.0f);
+        }
+        
+
         if (isolCheck)
         {
             ResetGameEnv();
@@ -382,6 +475,9 @@ public class GameManager : MonoBehaviour
         if (GameCheck()) //gamecheck field
         {
             placeContainer.AllPlaceNoticeOff();
+
+            PlayerList[OtherPlayerIndex(thisTurnPlayer)].Isdie = true;
+            
             resultText.text = "Player " + thisTurnPlayer.ToString() + " Win!";
             resultText.gameObject.SetActive(true);
             Invoke("Reset", 3.0f);
